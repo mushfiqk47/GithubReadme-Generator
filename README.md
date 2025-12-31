@@ -1,5 +1,5 @@
 <div align="center">
-  <img src="https://via.placeholder.com/150x150?text=IRG" alt="Logo" width="120" height="120" />
+  <img src="UI.png" alt="Intelligent README Generator UI" width="100%" />
   <h1>🧙‍♂️ Intelligent README Generator</h1>
   <p><b>The "Mirror Image" Agentic Documentation Engine</b></p>
 
@@ -26,9 +26,28 @@ cd intelligent-readme-generator
 # Install dependencies
 pip install -e .
 
+# Setup environment variables
+cp .env.example .env
+# Edit .env and add your API keys (Google Gemini, OpenAI, etc.)
+
 # Launch the Dashboard
 streamlit run src/main.py
 ```
+
+## ⚙️ Configuration
+
+The application uses environment variables for configuration. You can find a template in `.env.example`.
+
+### Key Variables:
+- `ACTIVE_PROVIDER`: The LLM provider to use (`google`, `openai`, `anthropic`, etc.)
+- `GOOGLE_API_KEY`: Your Google Gemini API Key.
+- `GITHUB_TOKEN`: Recommended to avoid rate limits when fetching repository data.
+
+### Supported Providers:
+- **Cloud LLMs**: All flagship models (GPT-4o, Claude 3.5 Sonnet, Gemini 1.5 Pro).
+- **Local LLMs**: LM Studio / Ollama via OpenAI-compatible endpoints.
+
+Refer to the **Settings** tab in the UI for real-time configuration.
 
 ## ✨ Key Features
 
@@ -76,12 +95,6 @@ test('README content should be high-fidelity', async ({ page }) => {
   await expect(page.locator('h1')).toContainText('Intelligent');
 });
 ```
-
-## 🛠️ Configuration
-
-Configure your providers in the **Settings** tab. IRG supports:
-- **Local LLMs**: LM Studio / Ollama via OpenAI-compatible endpoints.
-- **Cloud LLMs**: All flagship models (GPT-4o, Claude 3.5 Sonnet, Gemini 1.5 Pro).
 
 ---
 
