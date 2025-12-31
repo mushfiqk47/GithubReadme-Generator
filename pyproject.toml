@@ -1,0 +1,36 @@
+[build-system]
+requires = ["setuptools", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "intelligent-readme-generator"
+version = "0.1.0"
+description = "An agentic system to generate professional GitHub READMEs using LLMs."
+authors = [
+    { name = "Mushfiq", email = "user@example.com" }
+]
+dependencies = [
+    "langgraph",
+    "langchain",
+    "langchain-openai",
+    "langchain-anthropic",
+    "gql[all]",
+    "requests",
+    "python-dotenv",
+    "pydantic",
+    "tiktoken",
+    "streamlit",
+    "tree-sitter",
+    "tree-sitter-languages",
+    "networkx",
+    "GitPython",
+    "langchain-google-genai",
+    "langchain-groq",
+    "pydantic-settings",
+    "playwright"
+]
+requires-python = ">=3.11"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["src*"]
