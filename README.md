@@ -1,85 +1,118 @@
-<<<<<<< HEAD
 <div align="center">
-  <img src="UI.png" alt="Intelligent README Generator UI" width="100%" />
-  <h1>🧙‍♂️ Intelligent README Generator</h1>
-  <p><b>The "Mirror Image" Agentic Documentation Engine</b></p>
-=======
->>>>>>> 7500696b98678ad8cc1a884d208464472e75a307
 
+<img src="UI.png" alt="Intelligent README Generator UI" width="100%" style="border-radius: 10px; box-shadow: 0 4px 8px rgba(0,0,0,0.2);" />
 
-> [!IMPORTANT]
-> This tool analyzes your entire codebase using PageRank-inspired file prioritization and multi-agent consensus to generate Stripe-quality documentation.
+# 🧙‍♂️ Intelligent README Generator
+
+**Agentic documentation engine that builds Stripe-quality READMEs for your codebase.**
+
+[![Python](https://img.shields.io/badge/Python-3.11+-3776AB?style=for-the-badge&logo=python&logoColor=white)](https://python.org)
+[![LangGraph](https://img.shields.io/badge/LangGraph-Agentic-orange?style=for-the-badge)](https://github.com/langchain-ai/langgraph)
+[![Streamlit](https://img.shields.io/badge/Streamlit-App-FF4B4B?style=for-the-badge&logo=streamlit&logoColor=white)](https://streamlit.io)
+[![Playwright](https://img.shields.io/badge/Playwright-QA-2EAD33?style=for-the-badge&logo=playwright&logoColor=white)](https://playwright.dev)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg?style=for-the-badge)](https://opensource.org/licenses/MIT)
+
+[Features](#-key-features) • [Architecture](#-technical-architecture) • [Quick Start](#-quick-start) • [Configuration](#-configuration)
+
+</div>
+
+---
+
+### 💡 Why IRG?
+
+Writing documentation is tedious. IRG uses a **PageRank-inspired** analysis engine and a **Multi-Agent Consensus** workflow to transform your raw code into polished, professional documentation. It doesn't just summarize; it understands the *intent* and *architecture* of your project.
+
+---
+
+## ✨ Key Features
+
+| Feature | Description |
+| :--- | :--- |
+| **🔍 Multi-Agent Brain** | Librarian, Architect, Writer, and Reviewer agents collaborate to ensure accuracy. |
+| **🛡️ Quality Assurance** | Automatically generates **Playwright** E2E test documentation for web projects. |
+| **📊 Smart Context** | Ranks files by importance using `ContextBuilder`, prioritizing critical logic. |
+| **🔌 Provider Agnostic** | Support for **Gemini, OpenAI, Claude, Groq**, and local models (Ollama). |
+| **🎨 Visual Assets** | Generates Mermaid diagrams and beautiful badges automatically. |
+
+---
+
+## 🏗️ Technical Architecture
+
+IRG operates as a sophisticated state machine orchestrated by **LangGraph**:
+
+```mermaid
+flowchart TD
+    subgraph UI [User Interface]
+        direction LR
+        S[Streamlit Dashboard]
+    end
+
+    subgraph Core [Agentic Workflow]
+        L[Librarian: Indexing] --> A[Architect: Planning]
+        A --> W[Writer: Drafting]
+        W --> V[Visualizer: Badges/Mermaid]
+        V --> R[Reviewer: Quality Check]
+        R -- REJECT --> A
+    end
+
+    subgraph Engine [Code Analysis]
+        P[Tree-Sitter Parser]
+        G[Dependency Graph / PageRank]
+    end
+
+    S --> L
+    L --> P
+    P --> G
+    G --> Core
+```
+
+---
 
 ## 🚀 Quick Start
 
+### 1. Installation
 ```bash
 # Clone the repository
 git clone https://github.com/mushfiqk47/intelligent-readme-generator.git
 cd intelligent-readme-generator
 
-# Install dependencies
+# Install in editable mode
 pip install -e .
+```
 
-# Setup environment variables
+### 2. Configuration
+```bash
+# Setup environment
 cp .env.example .env
-# Edit .env and add your API keys (Google Gemini, OpenAI, etc.)
 
-# Launch the Dashboard
+# Edit .env with your keys
+# ACTIVE_PROVIDER=google
+# GOOGLE_API_KEY=your_key
+```
+
+### 3. Launch
+```bash
 streamlit run src/main.py
 ```
 
+---
+
 ## ⚙️ Configuration
 
-The application uses environment variables for configuration. You can find a template in `.env.example`.
+IRG is highly flexible. Configure your preferred engine in the `.env` file or directly through the **Settings** tab in the UI.
 
-### Key Variables:
-- `ACTIVE_PROVIDER`: The LLM provider to use (`google`, `openai`, `anthropic`, etc.)
-- `GOOGLE_API_KEY`: Your Google Gemini API Key.
-- `GITHUB_TOKEN`: Recommended to avoid rate limits when fetching repository data.
+| Variable | Description |
+| :--- | :--- |
+| `ACTIVE_PROVIDER` | `google`, `openai`, `anthropic`, `groq`, `openrouter`, or `local`. |
+| `GOOGLE_API_KEY` | Required for Gemini 1.5 Pro/Flash models. |
+| `GITHUB_TOKEN` | Highly recommended to avoid GitHub API rate limits. |
+| `MODEL_PLANNER` | The model used for architectural planning (e.g., `gpt-4o`). |
 
-### Supported Providers:
-- **Cloud LLMs**: All flagship models (GPT-4o, Claude 3.5 Sonnet, Gemini 1.5 Pro).
-- **Local LLMs**: LM Studio / Ollama via OpenAI-compatible endpoints.
-
-Refer to the **Settings** tab in the UI for real-time configuration.
-
-## ✨ Key Features
-
-- **🔍 Multi-Agent Brain**: Librarian, Architect, Writer, and Reviewer agents collaborate to ensure accuracy and tone.
-- **🛡️ Quality Assurance**: Automatically detects web projects and generates comprehensive **Playwright** E2E test documentation.
-- **📊 Smart Context**: Uses a custom `ContextBuilder` that ranks files by importance, ensuring the LLM sees your most critical logic first.
-- **🔌 Provider Agnostic**: Native support for OpenAI, Anthropic, Google Gemini, Groq, and OpenRouter.
-
-## 🏗️ Technical Architecture
-
-```mermaid
-flowchart TD
-    subgraph UI_Layer [User Interface]
-        Streamlit[Streamlit Dashboard]
-    end
-
-    subgraph Agent_Core [LangGraph Orchestration]
-        Librarian[Librarian: Indexing] --> Architect[Architect: Planning]
-        Architect --> Writer[Writer: Drafting]
-        Writer --> Visualizer[Visualizer: Badges/Mermaid]
-        Visualizer --> Reviewer[Reviewer: Quality Check]
-        Reviewer -- REJECT --> Architect
-    end
-
-    subgraph Analysis_Engine [Code Analysis]
-        Parser[Tree-Sitter Parser]
-        Graph[Dependency Graph / PageRank]
-    end
-
-    Streamlit --> Librarian
-    Librarian --> Parser
-    Parser --> Graph
-    Graph --> Agent_Core
-```
+---
 
 ## 🧪 Quality Control (Playwright)
 
-For web-based repositories, the generator automatically scaffolds a Playwright testing section:
+For web-based repositories, the generator automatically scaffolds high-fidelity testing documentation:
 
 ```typescript
 import { test, expect } from '@playwright/test';
@@ -93,5 +126,8 @@ test('README content should be high-fidelity', async ({ page }) => {
 ---
 
 <div align="center">
-  <sub>Built with ❤️ by Mushfiq Kabir. Optimized for Professional Engineering Teams.</sub>
+
+Built with ❤️ by **[Mushfiq Kabir](https://github.com/mushfiqk47)**
+*Optimized for Professional Engineering Teams*
+
 </div>
