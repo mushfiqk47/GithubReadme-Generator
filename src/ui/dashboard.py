@@ -1,11 +1,14 @@
 import streamlit as st
 import os
 import time
+import logging
 from src.ingestion.repo_manager import RepoManager
 from src.analysis.builder import ContextBuilder
 from src.core.graph import create_graph
 from src.ui.components import render_header
 from src.analysis.model_caps import ModelCapabilities
+
+logger = logging.getLogger(__name__)
 
 def render_dashboard():
     render_header("🧙‍♂️ Intelligent README Generator", "Agentic documentation for your codebase.")
