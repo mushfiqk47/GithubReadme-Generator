@@ -1,17 +1,11 @@
+<<<<<<< HEAD
 <div align="center">
   <img src="UI.png" alt="Intelligent README Generator UI" width="100%" />
   <h1>🧙‍♂️ Intelligent README Generator</h1>
   <p><b>The "Mirror Image" Agentic Documentation Engine</b></p>
+=======
+>>>>>>> 7500696b98678ad8cc1a884d208464472e75a307
 
-  <p>
-    <img src="https://img.shields.io/badge/Python-3.11+-blue?style=for-the-badge&logo=python" alt="Python" />
-    <img src="https://img.shields.io/badge/LangGraph-Agentic-orange?style=for-the-badge" alt="LangGraph" />
-    <img src="https://img.shields.io/badge/Status-Beta-green?style=for-the-badge" alt="Status" />
-    <img src="https://img.shields.io/badge/Playwright-Enabled-brightgreen?style=for-the-badge&logo=playwright" alt="Playwright" />
-  </p>
-</div>
-
-<br />
 
 > [!IMPORTANT]
 > This tool analyzes your entire codebase using PageRank-inspired file prioritization and multi-agent consensus to generate Stripe-quality documentation.
