@@ -26,10 +26,6 @@ def main():
         logger.error("GITHUB_TOKEN not set. checks .env")
         sys.exit(1)
         
-    if not (config.OPENAI_API_KEY or config.ANTHROPIC_API_KEY):
-        logger.error("No LLM API Key set (OPENAI_API_KEY or ANTHROPIC_API_KEY).")
-        sys.exit(1)
-
     logger.info(f"Targeting Repo: {args.owner}/{args.repo}")
 
     # 2. Ingestion

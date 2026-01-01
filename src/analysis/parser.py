@@ -100,7 +100,11 @@ class CodeParser:
                 # or just "class Foo"
                 
                 # Let's simplify: Just extract the text of the line where the node starts
-                start_line = node.start_point.row
+                start_point = node.start_point
+                if hasattr(start_point, 'row'):
+                    start_line = start_point.row
+                else:
+                    start_line = start_point[0]
                 # end_line = node.end_point.row
                 
                 # Fetch the line from content
