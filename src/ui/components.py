@@ -52,15 +52,15 @@ def ui_card(
     title_html = f"<h3 class='card-title'>{icon_html}{title}</h3>" if title else ""
     
     html = f"""
-    
+    <div class="ui-card" role="region" aria-label="Card" style="padding: {padding_value}; {border_style} border-radius: {BORDER_RADIUS};">
         {title_html}
     """
-    
+
     st.markdown(html, unsafe_allow_html=True)
     try:
         yield
     finally:
-        pass
+        st.markdown("</div>", unsafe_allow_html=True)
 
 
 def button(
@@ -92,7 +92,7 @@ def button(
     icon_prefix = f"{icon} " if icon else ""
     full_label = f"{icon_prefix}{label}"
     
-    type_map = {
+    type_map: dict[str, str] = {
         "primary": "primary",
         "secondary": "secondary",
         "danger": "secondary",  # Streamlit doesn't have danger type
@@ -102,7 +102,7 @@ def button(
     return st.button(
         full_label,
         on_click=on_click,
-        type=type_map.get(variant, "secondary"),
+        type=type_map.get(variant, "secondary"),  # type: ignore
         disabled=disabled,
         help=help,
         use_container_width=use_container_width,
@@ -137,7 +137,7 @@ def status_indicator(
     if func and message:
         func(f"{icon_prefix}{message}")
     elif status == "loading":
-        st.spinner(message)
+        st.info(f"{icon_prefix}{message}")
 
 
 def progress_bar(
@@ -216,7 +216,7 @@ def input_field(
         value=value,
         placeholder=placeholder,
         help=help_text,
-        type=type,
+        type="password" if type == "password" else "default",
         max_chars=max_chars,
         key=key
     )
@@ -263,7 +263,7 @@ def select_field(
     index: int = 0,
     help_text: str = "",
     key: Optional[str] = None
-) -> str:
+) -> Optional[str]:
     """
     Accessible select dropdown.
     
