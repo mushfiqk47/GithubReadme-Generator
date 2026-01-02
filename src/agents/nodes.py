@@ -43,10 +43,15 @@ def node_architect(state: DocumentationState) -> Dict[str, Any]:
     planner_llm = get_model(config.MODEL_PLANNER)
     repo_text = state['repo_data']
     insights = state.get("best_practices", [])
+    user_instructions = state.get("user_instructions", "")
     
+    prompt_content = f"Analyze this repository and design a Stripe-quality documentation plan. \nInsights found: {insights}\n\nContext:\n{repo_text}"
+    if user_instructions:
+        prompt_content += f"\n\n*** USER INSTRUCTIONS (PRIORITY): {user_instructions} ***"
+
     messages = [
         SystemMessage(content=ARCHITECT_PROMPT),
-        HumanMessage(content=f"Analyze this repository and design a Stripe-quality documentation plan. \nInsights found: {insights}\n\nContext:\n{repo_text}")
+        HumanMessage(content=prompt_content)
     ]
     
     response = planner_llm.invoke(messages)
@@ -66,8 +71,12 @@ def node_writer(state: DocumentationState) -> Dict[str, Any]:
     repo_text = state['repo_data']
     plan = state.get("project_summary", "")
     insights = "\n".join(state.get("best_practices", []))
+    user_instructions = state.get("user_instructions", "")
     
     msg = f"Architecture Plan:\n{plan}\n\nEngineering Insights:\n{insights}\n\nCodebase Context:\n{repo_text}\n\nTask: Write the full README.md. Include the Engineering Insights section."
+    if user_instructions:
+        msg += f"\n\n*** USER INSTRUCTIONS (PRIORITY): {user_instructions} ***"
+        
     messages = [
         SystemMessage(content=WRITER_PROMPT),
         HumanMessage(content=msg)

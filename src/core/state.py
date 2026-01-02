@@ -9,6 +9,7 @@ class DocumentationState(TypedDict):
     repo_owner: str
     repo_name: str
     repo_data: Dict[str, Any]       # Raw data/file tree from GitHub GraphQL
+    user_instructions: Optional[str] # Custom user instructions/focus areas
     
     # Analysis
     project_summary: Optional[str]            # High-level analysis/elevator pitch

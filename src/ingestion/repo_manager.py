@@ -1,10 +1,23 @@
 import os
 import tempfile
 import logging
+import shutil
+import stat
 from git import Repo # type: ignore
 from pathlib import Path
 
 logger = logging.getLogger(__name__)
+
+def remove_readonly(func, path, exc_info):
+    """
+    Error handler for shutil.rmtree.
+    If the error is due to an access error (read only file),
+    it attempts to add write permission and then retries.
+    If the error is for another reason it re-raises the error.
+    """
+    # Clear the readonly bit and reattempt the removal
+    os.chmod(path, stat.S_IWRITE)
+    func(path)
 
 class RepoManager:
     """
@@ -22,6 +35,16 @@ class RepoManager:
              self.base_dir = Path(os.getcwd()) / ".repo_cache"
         
         self.base_dir.mkdir(parents=True, exist_ok=True)
+
+    def clear_cache(self):
+        """
+        Removes the entire cache directory to free space or reset state.
+        """
+        if self.base_dir.exists():
+            # onerror is required on Windows for read-only git files
+            shutil.rmtree(self.base_dir, onerror=remove_readonly)
+            self.base_dir.mkdir(parents=True, exist_ok=True)
+            logger.info("Repository cache cleared.")
 
     def clone_repo(self, url: str) -> str:
         """

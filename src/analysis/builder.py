@@ -6,6 +6,7 @@ from typing import List, Dict, Set
 from concurrent.futures import ThreadPoolExecutor
 from src.analysis.parser import CodeParser
 from src.analysis.graph import DependencyGraph
+from src.core.constants import IGNORE_DIRS, IGNORE_EXTENSIONS
 
 logger = logging.getLogger(__name__)
 
@@ -14,17 +15,6 @@ class ContextBuilder:
     Optimized Context Builder with multi-threading and accurate token counting.
     """
     
-    IGNORE_DIRS = {
-        'node_modules', 'dist', 'build', 'venv', '__pycache__', 
-        '.git', '.idea', '.vscode', '.repo_cache', 'intelligent_readme_generator.egg-info'
-    }
-    
-    IGNORE_EXTENSIONS = {
-        '.lock', '.png', '.jpg', '.jpeg', '.gif', '.svg', '.ico', 
-        '.eot', '.ttf', '.woff', '.woff2', '.mp4', '.mp3', '.pdf', 
-        '.zip', '.tar', '.gz', '.pyc', '.class', '.exe', '.dll', '.bin'
-    }
-
     def __init__(self, root_dir: str):
         self.root_dir = root_dir
         self.parser = CodeParser()
@@ -42,9 +32,9 @@ class ContextBuilder:
     def _collect_files(self) -> List[str]:
         files = []
         for root, dirs, filenames in os.walk(self.root_dir):
-            dirs[:] = [d for d in dirs if d not in self.IGNORE_DIRS]
+            dirs[:] = [d for d in dirs if d not in IGNORE_DIRS]
             for name in filenames:
-                if any(name.endswith(ext) for ext in self.IGNORE_EXTENSIONS):
+                if any(name.endswith(ext) for ext in IGNORE_EXTENSIONS):
                     continue
                 files.append(os.path.join(root, name))
         return files
