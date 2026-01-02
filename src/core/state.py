@@ -22,6 +22,7 @@ class DocumentationState(TypedDict):
     
     # Drafting
     draft_sections: Dict[str, str]  # Generated content per section (Key: Section Name, Value: Markdown)
+    visual_assets: List[str]        # Badge row, diagrams, etc. produced by Visualizer
     
     # Intelligence
     best_practices: Optional[List[str]]   # Suggested improvements

@@ -1,6 +1,5 @@
 import time
 import logging
-import re
 from typing import Generator, Dict, Any, Optional
 from datetime import datetime
 
@@ -76,13 +75,30 @@ class ReadmeWorkflow:
             # 4. Graph Execution
             app = create_graph()
             initial_state = {
+                # Raw identifiers
                 "repo_owner": owner, 
                 "repo_name": repo, 
                 "repo_data": repo_text,
                 "local_path": local_path,
-                "iteration": 0, 
+                
+                # User controls
+                "user_instructions": custom_focus or None,
+                
+                # Analysis / planning placeholders
+                "project_summary": None,
+                "tech_stack": [],
+                "project_type": None,
+                "table_of_contents": [],
+                
+                # Drafting outputs
+                "draft_sections": {},
                 "visual_assets": [],
-                "project_summary": f"User Instructions: {custom_focus}" if custom_focus else None
+                
+                # QA loop
+                "best_practices": [],
+                "vulnerabilities": [],
+                "review_feedback": None,
+                "iteration": 0, 
             }
             
             final_state = initial_state

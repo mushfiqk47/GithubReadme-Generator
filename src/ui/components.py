@@ -60,7 +60,7 @@ def ui_card(
     try:
         yield
     finally:
-        st.markdown("</div>", unsafe_allow_html=True)
+        pass
 
 
 def button(
