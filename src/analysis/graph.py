@@ -11,14 +11,14 @@ class DependencyGraph:
     Builds a dependency graph of the repository and calculates PageRank.
     """
     
-    # Simple RegEx for imports - robust enough for MVP
-    # Python: from x import y, import x
-    # JS/TS: import x from 'y', require('y')
+    # Expanded Patterns for Polyglot Support
     PATTERNS = {
+        # Python
         '.py': [
             r'^\s*from\s+([\w\.]+)\s+import',
             r'^\s*import\s+([\w\.]+)'
         ],
+        # JavaScript / TypeScript
         '.js': [
             r'import\s+.*\s+from\s+[\'"](.+)[\'"]',
             r'require\s*\([\'"](.+)[\'"]\)'
@@ -28,7 +28,24 @@ class DependencyGraph:
             r'require\s*\([\'"](.+)[\'"]\)'
         ],
         '.tsx': [r'import\s+.*\s+from\s+[\'"](.+)[\'"]'],
-        '.jsx': [r'import\s+.*\s+from\s+[\'"](.+)[\'"]']
+        '.jsx': [r'import\s+.*\s+from\s+[\'"](.+)[\'"]'],
+        
+        # Go (Simple implementation, handles single imports and some multi-line)
+        '.go': [
+            r'import\s+"(.+)"',
+            r'\s+"(.+)"'  # Captures imports inside import ( ... ) blocks loosely
+        ],
+        
+        # Java
+        '.java': [
+            r'^\s*import\s+([\w\.]+);'
+        ],
+        
+        # Rust
+        '.rs': [
+            r'^\s*use\s+([\w\:]+);',
+            r'^\s*mod\s+([\w]+);'
+        ]
     }
 
     def __init__(self, root_dir: str):
@@ -48,7 +65,7 @@ class DependencyGraph:
             target = os.path.normpath(os.path.join(current_dir, import_str))
             
             # Try extensions
-            for ext in ['.py', '.js', '.ts', '.tsx', '.jsx']:
+            for ext in ['.py', '.js', '.ts', '.tsx', '.jsx', '.go', '.rs', '.java']:
                 if os.path.exists(target + ext):
                     return target + ext
                 if os.path.exists(os.path.join(target, 'index' + ext)):
