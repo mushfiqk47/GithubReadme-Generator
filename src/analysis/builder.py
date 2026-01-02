@@ -1,6 +1,7 @@
 import os
 import logging
 import tiktoken
+import subprocess
 from pathlib import Path
 from typing import List, Dict, Set
 from concurrent.futures import ThreadPoolExecutor
@@ -30,6 +31,38 @@ class ContextBuilder:
         return len(text) // 4
 
     def _collect_files(self) -> List[str]:
+        """
+        Collects files using 'git ls-files' if available (respects .gitignore),
+        otherwise falls back to os.walk with manual ignore lists.
+        """
+        # 1. Try Git Method
+        if os.path.exists(os.path.join(self.root_dir, ".git")):
+            try:
+                # Get list of tracked files, respecting .gitignore
+                result = subprocess.run(
+                    ["git", "ls-files"], 
+                    cwd=self.root_dir, 
+                    capture_output=True, 
+                    text=True, 
+                    encoding='utf-8',
+                    errors='ignore'
+                )
+                if result.returncode == 0:
+                    git_files = result.stdout.splitlines()
+                    # Filter by extension and existence
+                    final_files = []
+                    for f in git_files:
+                        full_path = os.path.join(self.root_dir, f)
+                        if os.path.isfile(full_path):
+                            if not any(f.endswith(ext) for ext in IGNORE_EXTENSIONS):
+                                final_files.append(full_path)
+                    if final_files:
+                        logger.info(f"Using git ls-files: Found {len(final_files)} files.")
+                        return final_files
+            except Exception as e:
+                logger.warning(f"Git ls-files failed, falling back to os.walk: {e}")
+
+        # 2. Fallback OS Walk Method
         files = []
         for root, dirs, filenames in os.walk(self.root_dir):
             dirs[:] = [d for d in dirs if d not in IGNORE_DIRS]

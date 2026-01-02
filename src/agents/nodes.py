@@ -1,4 +1,5 @@
 import json
+import logging
 from typing import Any, Dict
 from langchain_core.messages import SystemMessage, HumanMessage
 from langchain_openai import ChatOpenAI
@@ -6,11 +7,14 @@ from langchain_anthropic import ChatAnthropic
 
 from src.core.state import DocumentationState
 from src.core.config import config
+from src.core.memory import memory  # Import persistent memory
 from src.agents.prompts import (
     ARCHITECT_PROMPT, WRITER_PROMPT, VISUALIZER_PROMPT, REVIEWER_PROMPT, ENGINEERING_INSIGHTS_PROMPT
 )
 
 from src.core.llm_factory import LLMFactory
+
+logger = logging.getLogger(__name__)
 
 # Adapter to keep existing function signature if needed
 def get_model(model_name: str):
@@ -20,7 +24,7 @@ def node_intelligence(state: DocumentationState) -> Dict[str, Any]:
     """
     Analyzes the codebase for engineering insights and professional quality markers.
     """
-    print("--- Node: Intelligence ---")
+    logger.info("--- Node: Intelligence ---")
     llm = get_model(config.MODEL_PLANNER)
     repo_text = state['repo_data']
     
@@ -39,13 +43,25 @@ def node_architect(state: DocumentationState) -> Dict[str, Any]:
     """
     The Architect analyzes the repo data and produces a professional plan.
     """
-    print("--- Node: Architect ---")
+    logger.info("--- Node: Architect ---")
     planner_llm = get_model(config.MODEL_PLANNER)
     repo_text = state['repo_data']
     insights = state.get("best_practices", [])
     user_instructions = state.get("user_instructions", "")
     
-    prompt_content = f"Analyze this repository and design a Stripe-quality documentation plan. \nInsights found: {insights}\n\nContext:\n{repo_text}"
+    # Load persistent user memory
+    memory_context = memory.load()
+    
+    prompt_content = f"""Analyze this repository and design a Stripe-quality documentation plan. 
+
+Insights found: {insights}
+
+*** USER MEMORY (HISTORICAL PREFERENCES) ***
+{memory_context}
+
+Context:
+{repo_text}"""
+
     if user_instructions:
         prompt_content += f"\n\n*** USER INSTRUCTIONS (PRIORITY): {user_instructions} ***"
 
@@ -66,14 +82,30 @@ def node_writer(state: DocumentationState) -> Dict[str, Any]:
     """
     The Writer drafts the high-fidelity content.
     """
-    print("--- Node: Writer ---")
+    logger.info("--- Node: Writer ---")
     writer_llm = get_model(config.MODEL_WRITER)
     repo_text = state['repo_data']
     plan = state.get("project_summary", "")
     insights = "\n".join(state.get("best_practices", []))
     user_instructions = state.get("user_instructions", "")
     
-    msg = f"Architecture Plan:\n{plan}\n\nEngineering Insights:\n{insights}\n\nCodebase Context:\n{repo_text}\n\nTask: Write the full README.md. Include the Engineering Insights section."
+    # Load persistent user memory
+    memory_context = memory.load()
+    
+    msg = f"""Architecture Plan:
+{plan}
+
+Engineering Insights:
+{insights}
+
+*** USER MEMORY (HISTORICAL PREFERENCES) ***
+{memory_context}
+
+Codebase Context:
+{repo_text}
+
+Task: Write the full README.md. Include the Engineering Insights section."""
+
     if user_instructions:
         msg += f"\n\n*** USER INSTRUCTIONS (PRIORITY): {user_instructions} ***"
         
@@ -92,7 +124,7 @@ def node_visualizer(state: DocumentationState) -> Dict[str, Any]:
     """
     Generates high-quality badges and styled Mermaid diagrams.
     """
-    print("--- Node: Visualizer ---")
+    logger.info("--- Node: Visualizer ---")
     planner_llm = get_model(config.MODEL_PLANNER)
     repo_text = state['repo_data']
     
@@ -111,7 +143,7 @@ def node_reviewer(state: DocumentationState) -> Dict[str, Any]:
     """
     The Reviewer ensures the README meets 'Principal Engineer' standards.
     """
-    print("--- Node: Reviewer ---")
+    logger.info("--- Node: Reviewer ---")
     planner_llm = get_model(config.MODEL_PLANNER)
     draft = state['draft_sections'].get('full_readme', '')
     repo_text = state['repo_data']
@@ -124,16 +156,14 @@ def node_reviewer(state: DocumentationState) -> Dict[str, Any]:
     response = planner_llm.invoke(messages)
     feedback_text = response.content
     
-    # Try to parse JSON from the reviewer
-    try:
-        # Clean up possible markdown backticks
-        json_str = feedback_text.replace("```json", "").replace("```", "").strip()
-        data = json.loads(json_str)
-        status = data.get("status", "REJECT")
-        feedback = data.get("feedback", "No feedback provided.")
-    except:
-        status = "REJECT" if "REJECT" in feedback_text.upper() else "APPROVE"
-        feedback = feedback_text
+    # Simple Text Parsing for Robustness with Small Models
+    if "REJECT" in feedback_text.upper():
+        status = "REJECT"
+    else:
+        status = "APPROVE"
+        
+    # Extract feedback cleaner if possible
+    feedback = feedback_text.replace("Status:", "").replace("Feedback:", "").strip()
 
     iteration = state.get("iteration", 0) + 1
     

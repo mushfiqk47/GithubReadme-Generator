@@ -83,156 +83,193 @@ def fetch_models_for_provider(provider, api_key, base_url=None):
         
     return models
 
-def render_settings():
-    render_header("⚙️ Configuration", "Connect your preferred AI brains here. I'll remember these for next time.")
+def get_provider_status(provider):
+    """Checks if the provider is configured (has key or is local)."""
+    if provider == "local":
+        return True # Assume true or check URL validity?
     
-    col1, col2 = st.columns([1, 2])
-    
-    with col1:
-        with ui_card():
-            st.subheader("Select AI Brain")
-            st.caption("Which provider should drive the agents?")
-            provider_options = ["openai", "anthropic", "google", "groq", "openrouter", "local"]
-            current_idx = provider_options.index(config.ACTIVE_PROVIDER) if config.ACTIVE_PROVIDER in provider_options else 0
-            new_provider = st.radio("Provider", provider_options, index=current_idx, label_visibility="collapsed")
-            
-            if new_provider != config.ACTIVE_PROVIDER:
-                save_env_var("ACTIVE_PROVIDER", new_provider)
-                # Update the in-memory config object so the change is reflected immediately
-                config.ACTIVE_PROVIDER = new_provider
-                st.rerun()
+    key_var = f"{provider.upper()}_API_KEY"
+    return bool(os.getenv(key_var))
 
-    with col2:
-        with ui_card():
-            st.subheader(f"{new_provider.title()} Setup")
+def test_connection(provider):
+    """Runs a test connection request."""
+    with st.spinner(f"Pinging {provider}..."):
+        try:
+            llm = LLMFactory.get_model(os.getenv("MODEL_PLANNER", "gpt-4o"))
+            resp = llm.invoke([HumanMessage(content="Reply with 'OK'.")])
+            st.success(f"Connected! Response: {resp.content}")
+        except Exception as e:
+            st.error(f"Connection Failed: {e}")
+
+def render_settings():
+    render_header("⚙️ Configuration", "Manage your AI brains and system preferences.")
+
+    # 1. Define Providers & their Metadata
+    PROVIDERS = {
+        "openai": {"icon": "🤖", "name": "OpenAI", "desc": "Industry standard. Best for reasoning (GPT-4o)."},
+        "anthropic": {"icon": "🧠", "name": "Anthropic", "desc": "Huge context window. Great for large codebases (Claude 3.5)."},
+        "google": {"icon": "⚡", "name": "Google", "desc": "Fast and cost-effective (Gemini 1.5 Pro)."},
+        "groq": {"icon": "🚀", "name": "Groq", "desc": "Lightning fast inference (Llama 3)."},
+        "openrouter": {"icon": "🔗", "name": "OpenRouter", "desc": "Aggregator for all models."},
+        "local": {"icon": "🏠", "name": "Local LLM", "desc": "Privacy-focused (Ollama/LM Studio)."},
+    }
+
+    # 2. Layout: Side-by-Side (Menu | Content)
+    col_menu, col_content = st.columns([1, 2.5], gap="large")
+
+    with col_menu:
+        st.subheader("AI Provider")
+        
+        # Format labels with status indicators
+        def format_func(option):
+            data = PROVIDERS[option]
+            configured = get_provider_status(option)
+            status = "✅" if configured else "⚪"
+            return f"{status} {data['name']}"
+
+        # Use a radio button that looks like a vertical menu
+        selected_key = st.radio(
+            "Select Provider",
+            options=list(PROVIDERS.keys()),
+            format_func=format_func,
+            index=list(PROVIDERS.keys()).index(config.ACTIVE_PROVIDER) if config.ACTIVE_PROVIDER in PROVIDERS else 0,
+            label_visibility="collapsed"
+        )
+        
+        # Immediate switch logic
+        if selected_key != config.ACTIVE_PROVIDER:
+            save_env_var("ACTIVE_PROVIDER", selected_key)
+            config.ACTIVE_PROVIDER = selected_key
+            st.rerun()
             
+        st.divider()
+        st.caption(f"Currently Active:\n**{PROVIDERS[selected_key]['name']}**")
+
+    with col_content:
+        provider_data = PROVIDERS[selected_key]
+        
+        # Render the 'Active' Card
+        with ui_card():
+            c1, c2 = st.columns([0.1, 0.9])
+            with c1: st.title(provider_data['icon'])
+            with c2: 
+                st.subheader(f"{provider_data['name']} Settings")
+                st.caption(provider_data['desc'])
+            
+            st.divider()
+
+            # Dynamic Form based on provider
             api_key = ""
             fetch_supported = False
             
-            # 1. Input API Key
-            if new_provider == "openai":
-                st.markdown("You can find your key at [platform.openai.com](https://platform.openai.com/api-keys).")
-                api_key = st.text_input("OpenAI API Key", value=os.getenv("OPENAI_API_KEY", ""), type="password", placeholder="sk-...")
-                if st.button("Save Key"): 
-                    save_env_var("OPENAI_API_KEY", api_key)
-                    from pydantic import SecretStr
-                    config.OPENAI_API_KEY = SecretStr(api_key)
-                fetch_supported = True
-
-            elif new_provider == "anthropic":
-                st.markdown("Get your key from [console.anthropic.com](https://console.anthropic.com/).")
-                api_key = st.text_input("Anthropic API Key", value=os.getenv("ANTHROPIC_API_KEY", ""), type="password", placeholder="sk-ant-...")
-                if st.button("Save Key"): 
-                    save_env_var("ANTHROPIC_API_KEY", api_key)
-                    from pydantic import SecretStr
-                    config.ANTHROPIC_API_KEY = SecretStr(api_key)
-                st.info("Supported: claude-3-5-sonnet-20240620, claude-3-opus-20240229, claude-3-haiku-20240307")
-
-            elif new_provider == "google":
-                st.markdown("Get a free key from [aistudio.google.com](https://aistudio.google.com/app/apikey).")
-                api_key = st.text_input("Google API Key", value=os.getenv("GOOGLE_API_KEY", ""), type="password")
-                if st.button("Save Key"): 
-                    save_env_var("GOOGLE_API_KEY", api_key)
-                    from pydantic import SecretStr
-                    config.GOOGLE_API_KEY = SecretStr(api_key)
-                fetch_supported = True
+            # --- INPUT SECTION ---
+            if selected_key == "local":
+                 st.info("Ensure your local server (e.g., LM Studio, Ollama) is running.")
+                 base_url = st.text_input("Base URL", value=os.getenv("LOCAL_LLM_BASE_URL", "http://localhost:1234/v1"))
+                 if st.button("💾 Save URL"):
+                     save_env_var("LOCAL_LLM_BASE_URL", base_url)
+                     save_env_var("USE_LOCAL_LLM", "true")
+                     config.LOCAL_LLM_BASE_URL = base_url
+                     config.USE_LOCAL_LLM = True
+                 fetch_supported = True
+                 
+            else:
+                # Standard API Key Providers
+                env_key = f"{selected_key.upper()}_API_KEY"
+                current_val = os.getenv(env_key, "")
                 
-            elif new_provider == "groq":
-                st.markdown("Get your key from [console.groq.com](https://console.groq.com/keys).")
-                api_key = st.text_input("Groq API Key", value=os.getenv("GROQ_API_KEY", ""), type="password")
-                if st.button("Save Key"): 
-                    save_env_var("GROQ_API_KEY", api_key)
-                    from pydantic import SecretStr
-                    config.GROQ_API_KEY = SecretStr(api_key)
-                fetch_supported = True
+                # Help links
+                help_links = {
+                    "openai": "[Get Key](https://platform.openai.com/api-keys)",
+                    "anthropic": "[Get Key](https://console.anthropic.com/)",
+                    "google": "[Get Key](https://aistudio.google.com/app/apikey)",
+                    "groq": "[Get Key](https://console.groq.com/keys)",
+                    "openrouter": "[Get Key](https://openrouter.ai/keys)"
+                }
                 
-            elif new_provider == "openrouter":
-                st.markdown("Get your key from [openrouter.ai/keys](https://openrouter.ai/keys).")
-                api_key = st.text_input("OpenRouter API Key", value=os.getenv("OPENROUTER_API_KEY", ""), type="password")
-                if st.button("Save Key"): 
-                    save_env_var("OPENROUTER_API_KEY", api_key)
-                    from pydantic import SecretStr
-                    config.OPENROUTER_API_KEY = SecretStr(api_key)
-                fetch_supported = True
+                c_input, c_btn = st.columns([3, 1], vertical_alignment="bottom")
+                with c_input:
+                    api_key = st.text_input(
+                        "API Key", 
+                        value=current_val, 
+                        type="password", 
+                        placeholder=f"sk-...",
+                        help=f"Your key is stored locally in .env. {help_links.get(selected_key, '')}"
+                    )
+                with c_btn:
+                    if st.button("💾 Save", key=f"save_{selected_key}", use_container_width=True):
+                        save_env_var(env_key, api_key)
+                        # Reflection hack for pydantic settings update
+                        try:
+                            # Try setting on config object if attribute exists
+                             setattr(config, env_key, api_key)
+                        except:
+                            pass
+                        st.toast("Key saved!", icon="🔒")
+                
+                if current_val:
+                    fetch_supported = True
 
-            elif new_provider == "local":
-                st.markdown("Connect to a local server like LM Studio or Ollama.")
-                base_url = st.text_input("Base URL", value=os.getenv("LOCAL_LLM_BASE_URL", "http://localhost:1234/v1"))
-                if st.button("Save URL"): 
-                    save_env_var("LOCAL_LLM_BASE_URL", base_url)
-                    save_env_var("USE_LOCAL_LLM", "true")
-                    config.LOCAL_LLM_BASE_URL = base_url
-                    config.USE_LOCAL_LLM = True
-                fetch_supported = True
-
-            st.divider()
-
-            # 2. Model Selection
-            st.subheader("Select Model")
-            current_model = os.getenv("MODEL_PLANNER", "gpt-4o")
-            
-            default_models = {
-                "openai": ["gpt-4o", "gpt-4o-mini", "gpt-4-turbo", "o1-preview", "o1-mini"],
-                "anthropic": ["claude-3-5-sonnet-20240620", "claude-3-opus-20240229", "claude-3-haiku-20240307"],
-                "google": ["gemini-1.5-pro", "gemini-1.5-flash", "gemini-pro"],
-                "groq": ["llama-3.1-70b-versatile", "llama-3.1-8b-instant", "mixtral-8x7b-32768", "llama3-70b-8192"],
-                "openrouter": ["openai/gpt-4o", "anthropic/claude-3.5-sonnet", "meta-llama/llama-3.1-405b-instruct"],
-                "local": ["local-model"]
-            }
-            
-            available_models = default_models.get(new_provider, [])
-            
-            if f'{new_provider}_models' in st.session_state:
-                available_models = st.session_state[f'{new_provider}_models']
-            
-            fetch_key = api_key 
-            fetch_url = None
-            if not fetch_key and new_provider != "local": 
-                fetch_key = os.getenv(f"{new_provider.upper()}_API_KEY")
-            if new_provider == "local":
-                 fetch_url = os.getenv("LOCAL_LLM_BASE_URL", "http://localhost:1234/v1")
-            
+            # --- MODEL SELECTION ---
             if fetch_supported:
-                col_a, col_b = st.columns([1, 2])
-                with col_a:
-                    if st.button("🔄 Refresh Model List"):
-                        if not fetch_key and new_provider != "local":
-                            st.error("Please save your API Key first so I can fetch the list.")
-                        else:
-                            with st.spinner("Asking the provider for models..."):
-                                fetched = fetch_models_for_provider(new_provider, fetch_key, fetch_url)
-                                if fetched:
-                                    st.session_state[f'{new_provider}_models'] = fetched
-                                    st.success(f"Found {len(fetched)} models!")
-                                    st.rerun()
+                st.markdown("### Model Selection")
                 
-            if current_model not in available_models:
-                available_models.insert(0, current_model)
-                
-            idx = 0
-            if current_model in available_models:
-                 idx = available_models.index(current_model)
-            
-            selected_model = st.selectbox("Select Model", available_models, index=idx)
-            
-            if selected_model != current_model:
-                save_env_var("MODEL_PLANNER", selected_model)
-                save_env_var("MODEL_WRITER", selected_model)
-                if new_provider == "local": save_env_var("LOCAL_LLM_MODEL", selected_model)
-                
-                # Update in-memory config for immediate reflection
-                config.MODEL_PLANNER = selected_model
-                config.MODEL_WRITER = selected_model
-                if new_provider == "local": config.LOCAL_LLM_MODEL = selected_model
-                
-                st.rerun()
+                default_models = {
+                    "openai": ["gpt-4o", "gpt-4o-mini", "gpt-4-turbo", "o1-preview", "o1-mini"],
+                    "anthropic": ["claude-3-5-sonnet-20240620", "claude-3-opus-20240229", "claude-3-haiku-20240307"],
+                    "google": ["gemini-1.5-pro", "gemini-1.5-flash", "gemini-pro"],
+                    "groq": ["llama-3.1-70b-versatile", "llama-3.1-8b-instant", "mixtral-8x7b-32768", "llama3-70b-8192"],
+                    "openrouter": ["openai/gpt-4o", "anthropic/claude-3.5-sonnet", "meta-llama/llama-3.1-405b-instruct"],
+                    "local": ["local-model"]
+                }
 
-        with st.expander("🔌 Connection Test"):
-            if st.button("Run Test Request"):
-                with st.spinner("Pinging AI..."):
-                    try:
-                        llm = LLMFactory.get_model(os.getenv("MODEL_PLANNER", "gpt-4o"))
-                        resp = llm.invoke([HumanMessage(content="Reply with 'OK'.")])
-                        st.success(f"Connected! The AI says: {resp.content}")
-                    except Exception as e:
-                        st.error(f"Connection Failed: {e}")
+                # Fetch available models
+                available_models = default_models.get(selected_key, [])
+                if f'{selected_key}_models' in st.session_state:
+                    available_models = st.session_state[f'{selected_key}_models']
+
+                # "Refresh" as a small icon button or link
+                col_sel, col_refresh = st.columns([3, 1], vertical_alignment="bottom")
+                with col_sel:
+                    # Current model from config
+                    current_model = os.getenv("MODEL_PLANNER", "gpt-4o")
+                    
+                    # Ensure current is in list
+                    if current_model not in available_models:
+                        available_models.insert(0, current_model)
+                    
+                    # Index
+                    try: idx = available_models.index(current_model)
+                    except: idx = 0
+                    
+                    new_model = st.selectbox("Active Model", available_models, index=idx)
+                    
+                with col_refresh:
+                    fetch_key = api_key if api_key else os.getenv(f"{selected_key.upper()}_API_KEY")
+                    fetch_url = base_url if selected_key == "local" else None
+                    
+                    if st.button("🔄 Refresh", help="Fetch latest models from API"):
+                         if not fetch_key and selected_key != "local":
+                             st.error("Save key first.")
+                         else:
+                             with st.spinner("Fetching..."):
+                                 fetched = fetch_models_for_provider(selected_key, fetch_key, fetch_url)
+                                 if fetched:
+                                     st.session_state[f'{selected_key}_models'] = fetched
+                                     st.success(f"Found {len(fetched)} models")
+                                     st.rerun()
+
+                if new_model != current_model:
+                     # Save logic
+                     save_env_var("MODEL_PLANNER", new_model)
+                     save_env_var("MODEL_WRITER", new_model)
+                     if selected_key == "local": save_env_var("LOCAL_LLM_MODEL", new_model)
+                     config.MODEL_PLANNER = new_model
+                     config.MODEL_WRITER = new_model
+                     if selected_key == "local": config.LOCAL_LLM_MODEL = new_model
+                     st.rerun()
+
+            # --- TEST CONNECTION ---
+            st.divider()
+            if st.button(f"📡 Test Connection to {provider_data['name']}", use_container_width=True):
+                test_connection(selected_key)

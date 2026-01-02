@@ -35,11 +35,15 @@ class ModelCapabilities:
         "gemma-7b-it": 8192,
         "gemma2-9b-it": 8192,
         
+        # DeepSeek
+        "deepseek-coder": 32000,
+        "deepseek-chat": 32000,
+        
         # OpenRouter
         "openrouter": 128000,
         
-        # Generic Local
-        "local-model": 32768 
+        # Generic Local (Safe default for 8GB VRAM)
+        "local-model": 8192 
     }
 
     @staticmethod

@@ -1,12 +1,8 @@
 import argparse
 import sys
-import os
 import logging
 from src.core.config import config
-from src.core.graph import create_graph
-from src.ingestion.repo_manager import RepoManager
-from src.analysis.builder import ContextBuilder
-from src.analysis.model_caps import ModelCapabilities
+from src.core.workflow import ReadmeWorkflow
 
 # Setup logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -17,67 +13,44 @@ def main():
     parser.add_argument("owner", help="GitHub Repository Owner")
     parser.add_argument("repo", help="GitHub Repository Name")
     parser.add_argument("--output", default="GENERATED_README.md", help="Output filename")
+    parser.add_argument("--focus", default="", help="Custom instructions/focus area")
     
     args = parser.parse_args()
     
     # 1. Validation
     if not config.GITHUB_TOKEN:
-        logger.warning("GITHUB_TOKEN not set in .env. Rate limits may apply.")
+        logger.warning("GITHUB_TOKEN not set. Rate limits may apply.")
         
-    logger.info(f"Targeting Repo: {args.owner}/{args.repo}")
     repo_url = f"https://github.com/{args.owner}/{args.repo}.git"
+    workflow = ReadmeWorkflow()
+    final_result = None
 
-    # 2. Ingestion (Local Clone Strategy)
+    print(f"\n🚀 Starting generation for {args.owner}/{args.repo}...\n")
+
+    # 2. Execution
     try:
-        logger.info("Cloning repository...")
-        repo_manager = RepoManager()
-        local_path = repo_manager.clone_repo(repo_url)
-    except Exception as e:
-        logger.error(f"Failed to clone repo: {e}")
-        sys.exit(1)
-        
-    # 3. Context Building
-    logger.info("Mapping codebase...")
-    try:
-        current_model = config.MODEL_PLANNER
-        max_ctx = ModelCapabilities.get_max_tokens(current_model)
-        safe_budget = int(max_ctx * 0.9) # 90% budget for CLI
-        
-        builder = ContextBuilder(local_path)
-        repo_text = builder.build_repository_map(max_tokens=safe_budget)
-        token_count = builder._get_token_count(repo_text)
-        logger.info(f"Context built: {token_count} tokens")
-    except Exception as e:
-        logger.error(f"Failed to build context: {e}")
-        sys.exit(1)
-    
-    # 4. Graph Execution
-    logger.info("Initializing Agent Graph...")
-    app = create_graph()
-    
-    initial_state = {
-        "repo_owner": args.owner,
-        "repo_name": args.repo,
-        "repo_data": repo_text,
-        "iteration": 0,
-        "visual_assets": []
-    }
-    
-    logger.info("Running Workflow... (This may take a minute)")
-    final_state = app.invoke(initial_state)
-    
-    # 5. Output
-    draft = final_state['draft_sections'].get('full_readme', '')
-    assets = final_state.get('visual_assets', [])
-    
-    # Append assets if not present
-    assets_text = "\n\n".join(assets)
-    final_content = f"{draft}\n\n<!-- Visual Assets Generated -->\n{assets_text}"
-    
-    with open(args.output, "w", encoding="utf-8") as f:
-        f.write(final_content)
-        
-    logger.info(f"Success! README generated at {args.output}")
+        for event in workflow.run(repo_url, custom_focus=args.focus):
+            if event.type == "status":
+                print(f"[{event.progress}%] {event.message}")
+            elif event.type == "log":
+                logger.info(event.message)
+            elif event.type == "error":
+                logger.error(event.message)
+                sys.exit(1)
+            elif event.type == "result":
+                final_result = event.payload
+                print(f"\n✅ Done in {final_result['duration']:.1f}s")
+
+    except KeyboardInterrupt:
+        print("\n🛑 Operation cancelled by user.")
+        sys.exit(130)
+
+    # 3. Output
+    if final_result:
+        with open(args.output, "w", encoding="utf-8") as f:
+            f.write(final_result['markdown'])
+            
+        logger.info(f"Success! README generated at {args.output}")
 
 if __name__ == "__main__":
     main()
