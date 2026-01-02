@@ -1,33 +1,34 @@
-import re
-from typing import Dict, Any, List
+import os
+import logging
+from typing import List, Dict
 
-def generate_badges(repo_data: Dict[str, Any]) -> List[str]:
+logger = logging.getLogger(__name__)
+
+def generate_badges(repo_path: str) -> List[str]:
     """
-    Analyzes repository data to strictly generate valid Shields.io badges.
+    Deterministically generates badges based on file existence.
     """
     badges = []
     
-    # 1. License Badge
-    # (Simplified check: look for LICENSE file in top level)
-    # The actual graphQL data might need to be parsed deeper if we want the specific license type text
-    # For now, we'll try to guess from the data context or just generic if file exists.
-    # In a real app, we'd checking `object.entries` for "LICENSE".
+    # License
+    if os.path.exists(os.path.join(repo_path, "LICENSE")):
+        badges.append("[![License](https://img.shields.io/github/license/placeholder/repo?style=for-the-badge)](LICENSE)")
     
-    # Let's assume we have access to the file list from the simplified processing
-    # A true implementation would parse the 'licenseInfo' field from GitHub API (if requested).
-    # Since our query didn't request licenseInfo, we can check for file existence.
-    
-    # 2. CI/CD Badge
-    # Check for .github/workflows/*.yml
-    # This requires traversing the tree.
-    
-    # Implementation:
-    # We will scan the processed text for hints, OR better, passing the raw tree object here is safer.
-    
-    # For v1, let's just return a placeholder list that the LLM *context* can use, 
-    # or let the LLM do it but guided by this function if we were using tool calling.
-    
-    # Since the `Visualizer` node is currently LLM-driven, we will stick to that for now 
-    # to avoid complex tree traversal logic in Python without the full object structure readily available.
-    
-    return []
+    # CI/CD
+    github_workflows = os.path.join(repo_path, ".github", "workflows")
+    if os.path.exists(github_workflows) and os.listdir(github_workflows):
+        badges.append("[![CI](https://img.shields.io/github/actions/workflow/status/placeholder/repo/ci.yml?style=for-the-badge)](.github/workflows)")
+        
+    # Python
+    if os.path.exists(os.path.join(repo_path, "pyproject.toml")) or os.path.exists(os.path.join(repo_path, "requirements.txt")):
+        badges.append("[![Python](https://img.shields.io/badge/Python-3.9+-blue?style=for-the-badge&logo=python&logoColor=white)](https://python.org)")
+        
+    # JavaScript/TypeScript
+    if os.path.exists(os.path.join(repo_path, "package.json")):
+        badges.append("[![Node](https://img.shields.io/badge/Node-18+-green?style=for-the-badge&logo=nodedotjs&logoColor=white)](https://nodejs.org)")
+        
+    # Docker
+    if os.path.exists(os.path.join(repo_path, "Dockerfile")):
+        badges.append("[![Docker](https://img.shields.io/badge/Docker-Enabled-blue?style=for-the-badge&logo=docker&logoColor=white)](Dockerfile)")
+
+    return badges

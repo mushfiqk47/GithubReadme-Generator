@@ -8,6 +8,7 @@ from langchain_anthropic import ChatAnthropic
 from src.core.state import DocumentationState
 from src.core.config import config
 from src.core.memory import memory  # Import persistent memory
+from src.tools.badges import generate_badges
 from src.agents.prompts import (
     ARCHITECT_PROMPT, WRITER_PROMPT, VISUALIZER_PROMPT, REVIEWER_PROMPT, ENGINEERING_INSIGHTS_PROMPT
 )
@@ -34,9 +35,15 @@ def node_intelligence(state: DocumentationState) -> Dict[str, Any]:
     ]
     
     response = llm.invoke(messages)
+    
+    content = response.content
+    if isinstance(content, list):
+        # Handle cases where content is a list of blocks (e.g. Anthropic)
+        content = "\n".join([str(c) for c in content])
+        
     # Store the insights to be used by the Writer
     return {
-        "best_practices": [response.content]
+        "best_practices": [str(content)]
     }
 
 def node_architect(state: DocumentationState) -> Dict[str, Any]:
@@ -46,7 +53,16 @@ def node_architect(state: DocumentationState) -> Dict[str, Any]:
     logger.info("--- Node: Architect ---")
     planner_llm = get_model(config.MODEL_PLANNER)
     repo_text = state['repo_data']
-    insights = state.get("best_practices", [])
+    
+    # Flatten insights for prompt injection
+    raw_insights = state.get("best_practices", [])
+    insights_str = ""
+    for item in raw_insights:
+        if isinstance(item, list):
+            insights_str += "\n".join([str(i) for i in item])
+        else:
+            insights_str += str(item)
+            
     user_instructions = state.get("user_instructions", "")
     
     # Load persistent user memory
@@ -54,7 +70,7 @@ def node_architect(state: DocumentationState) -> Dict[str, Any]:
     
     prompt_content = f"""Analyze this repository and design a Stripe-quality documentation plan. 
 
-Insights found: {insights}
+Insights found: {insights_str}
 
 *** USER MEMORY (HISTORICAL PREFERENCES) ***
 {memory_context}
@@ -86,7 +102,17 @@ def node_writer(state: DocumentationState) -> Dict[str, Any]:
     writer_llm = get_model(config.MODEL_WRITER)
     repo_text = state['repo_data']
     plan = state.get("project_summary", "")
-    insights = "\n".join(state.get("best_practices", []))
+    
+    # Robustly flatten insights list
+    raw_insights = state.get("best_practices", [])
+    flat_insights = []
+    for item in raw_insights:
+        if isinstance(item, list):
+            flat_insights.extend([str(i) for i in item])
+        else:
+            flat_insights.append(str(item))
+    insights = "\n".join(flat_insights)
+    
     user_instructions = state.get("user_instructions", "")
     
     # Load persistent user memory
@@ -127,10 +153,15 @@ def node_visualizer(state: DocumentationState) -> Dict[str, Any]:
     logger.info("--- Node: Visualizer ---")
     planner_llm = get_model(config.MODEL_PLANNER)
     repo_text = state['repo_data']
+    local_path = state.get('local_path', '')
+    
+    # Deterministic Badge Generation
+    badges = generate_badges(local_path) if local_path else []
+    badges_md = "\n".join(badges)
     
     messages = [
         SystemMessage(content=VISUALIZER_PROMPT),
-        HumanMessage(content=f"Repository Context:\n{repo_text}\n\nGenerate premium badges and a styled Mermaid diagram.")
+        HumanMessage(content=f"Repository Context:\n{repo_text}\n\nPRE-CALCULATED BADGES (USE THESE):\n{badges_md}\n\nTask: Generate the Badge Row (using the provided ones) and a styled Mermaid diagram.")
     ]
     
     response = planner_llm.invoke(messages)

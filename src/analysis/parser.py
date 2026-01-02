@@ -23,18 +23,24 @@ class CodeParser:
         '.c': 'c',
     }
     
-    # S-expressions for queries
+    # Improved Queries with Docstring Capture
     QUERIES = {
         'python': """
-            (function_definition name: (identifier) @name) @function
-            (class_definition name: (identifier) @name) @class
+            (function_definition 
+                name: (identifier) @name 
+                body: (block (expression_statement (string) @doc)?)) @function
+            (class_definition 
+                name: (identifier) @name 
+                body: (block (expression_statement (string) @doc)?)) @class
         """,
         'javascript': """
+            (comment) @doc
             (function_declaration name: (identifier) @name) @function
             (class_declaration name: (identifier) @name) @class
             (variable_declarator name: (identifier) @name value: [(arrow_function) (function_expression)]) @function
         """,
         'typescript': """
+            (comment) @doc
             (function_declaration name: (identifier) @name) @function
             (class_declaration name: (identifier) @name) @class
             (interface_declaration name: (type_identifier) @name) @interface
@@ -58,8 +64,7 @@ class CodeParser:
 
     def parse_file(self, file_path: str) -> str:
         """
-        Parses a file and returns a skeleton string of definitions.
-        If parsing fails or language not supported, returns first 50 lines.
+        Parses a file and returns a skeleton string of definitions including docstrings.
         """
         ext = os.path.splitext(file_path)[1]
         lang_name = self.SUPPORTED_LANGUAGES.get(ext)
@@ -79,41 +84,38 @@ class CodeParser:
             query_scm = self.QUERIES.get(lang_name)
             
             if not query_scm:
-                 # If no query defined, just return the whole file for now (or fallback)
                  return content
             
             # Execute query
             query = self.languages[lang_name].query(query_scm)
             captures = query.captures(tree.root_node)
             
-            # Build skeleton
-            # This is a simplified approach: we just list the names found.
-            # A better approach (Full Skeleton) requires reconstructing the text with bodies removed.
-            # detailed in 2.2.1 of the report.
-            
             definitions = []
-            for node, capture_name in captures:
-                # Get the name of the definition
-                name_node = node
-                # The query puts @name on the identifier, and @class/@function on the whole node.
-                # However, captures return both. We want the full text of the signature ideally,
-                # or just "class Foo"
-                
-                # Let's simplify: Just extract the text of the line where the node starts
-                start_point = node.start_point
-                if hasattr(start_point, 'row'):
-                    start_line = start_point.row
-                else:
-                    start_line = start_point[0]
-                # end_line = node.end_point.row
-                
-                # Fetch the line from content
-                lines = content.split('\n')
-                if start_line < len(lines):
-                    definitions.append(f"{capture_name}: {lines[start_line].strip()}")
+            last_doc = None
             
+            for node, capture_name in captures:
+                # Capture Docstrings
+                if capture_name == 'doc':
+                    last_doc = content[node.start_byte:node.end_byte].strip()
+                    continue
+                
+                # Capture Definitions
+                if capture_name in ['name', 'function', 'class', 'interface']:
+                    # We usually get 'name' then the full node. Let's focus on the name for brevity.
+                    if capture_name == 'name':
+                        def_name = content[node.start_byte:node.end_byte]
+                        parent_type = node.parent.type if node.parent else "unknown"
+                        
+                        line = f"{parent_type} {def_name}"
+                        if last_doc:
+                            # Attach the docstring if it was immediately preceding (simplistic heuristic)
+                            line += f"\n  \"\"\" {last_doc[:100]}... \"\"\""
+                            last_doc = None # Reset
+                        
+                        definitions.append(line)
+
             if not definitions:
-                return self._fallback_read(file_path) # No definitions found, maybe just script
+                return self._fallback_read(file_path)
                 
             return "\n".join(definitions)
 

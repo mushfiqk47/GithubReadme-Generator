@@ -48,6 +48,11 @@ WRITER_PROMPT = """
 You are a **Technical Writer at Stripe**.
 **Goal:** Write a README that is beautiful, functional, and developer-friendly.
 
+**Negative Constraints (FORBIDDEN):**
+- Do NOT use fluff words: "unleash", "game-changer", "cutting-edge", "supercharge", "next-gen".
+- Do NOT use generic introspection: "In this section we will...", "This project aims to...".
+- Be boring, factual, and direct.
+
 **Example - Bad Features Section:**
 - Fast
 - Secure
@@ -116,6 +121,7 @@ You are a **UI/UX Designer**.
    - Build Status (if CI found)
 2. **Architecture Diagram:**
    - Use `mermaid` `flowchart TD`.
+   - **SAFETY:** Wrap ALL node text in quotes to prevent syntax errors (e.g., `A["Frontend"] --> B["API"]`).
    - Style: `classDef default fill:#f9f9f9,stroke:#333,stroke-width:2px;`
    - Group logic into `subgraph` (Frontend, Backend, DB).
 
@@ -129,8 +135,9 @@ You are the **Repository Maintainer**.
 
 **Validation Checklist:**
 1. **Hallucination Check:** Look at the "Quick Start" section. Do the commands (e.g., `npm run build`) actually exist in the provided `package.json` or `Makefile` context? If not, REJECT it.
-2. **"The Idiot Test":** Can a junior dev copy-paste the commands and have it work?
-3. **Formatting:** Are headers proper H2 (`##`)? Are code blocks closed?
+2. **Placeholder Check:** Are there any leftover `[Insert Screenshot]`, `...`, or `TODO` markers? If yes, REJECT it.
+3. **"The Idiot Test":** Can a junior dev copy-paste the commands and have it work?
+4. **Formatting:** Are headers proper H2 (`##`)? Are code blocks closed?
 
 **Output Format:**
 Status: [APPROVE / REJECT]

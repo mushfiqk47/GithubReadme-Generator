@@ -78,6 +78,7 @@ class ReadmeWorkflow:
                 "repo_owner": owner, 
                 "repo_name": repo, 
                 "repo_data": repo_text,
+                "local_path": local_path,
                 "iteration": 0, 
                 "visual_assets": [],
                 "project_summary": f"User Instructions: {custom_focus}" if custom_focus else None
