@@ -5,7 +5,10 @@ from datetime import datetime
 
 from src.ingestion.repo_manager import RepoManager
 from src.core.workflow import ReadmeWorkflow
-from src.ui.components import render_header, render_mermaid
+from src.ui.components import (
+    render_header, render_mermaid, ui_card, button, 
+    status_indicator, tabs, divider, spacer
+)
 from src.analysis.model_caps import ModelCapabilities
 from src.core.config import config
 
@@ -14,9 +17,9 @@ logger = logging.getLogger(__name__)
 def render_dashboard():
     # --- Sidebar Controls ---
     with st.sidebar:
-        st.divider()
+        divider()
         st.subheader("🛠️ Utilities")
-        if st.button("🗑️ Clear Repo Cache", help="Deletes downloaded repositories to free space"):
+        if button("🗑️ Clear Repo Cache", variant="secondary", icon="", help="Deletes downloaded repositories to free space"):
             RepoManager().clear_cache()
             st.toast("Cache cleared successfully!", icon="🧹")
 
@@ -27,17 +30,17 @@ def render_dashboard():
         st.session_state.history = []
 
     # Tabs
-    tab_main, tab_history = st.tabs(["🚀 Generator", "📜 History"])
+    tab_main, tab_history = tabs(["🚀 Generator", "📜 History"])
 
     with tab_main:
-        with st.container():
+        with ui_card():
             col1, col2 = st.columns([3, 1])
             with col1:
                 repo_url = st.text_input("Project Repository", placeholder="Paste your GitHub link here (e.g., https://github.com/owner/repo)")
             with col2:
-                st.write("") # Spacer
-                st.write("") # Spacer
-                if st.button("🎲 Try Example", help="Use a demo repository"):
+                spacer("sm")
+                spacer("sm")
+                if button("🎲 Try Example", variant="secondary", help="Use a demo repository"):
                     repo_url = "https://github.com/mushfiqk47/intelligent-readme-generator"
                     st.rerun()
                     
@@ -55,14 +58,14 @@ def render_dashboard():
                                              step=5000,
                                              help="Higher budget = more file context, but slower generation.")
 
-        if st.button("✨ Start Magic", type="primary", use_container_width=True):
+        if button("✨ Start Magic", variant="primary", icon="", use_container_width=True):
             if not repo_url:
-                st.warning("👈 Please paste a GitHub URL first so I know what to document!")
+                status_indicator("warning", "👈 Please paste a GitHub URL first so I know what to document!")
                 return
                 
             # Narrative Status Updates
-            with st.status(f"🚀 Spinnning up the team... (Brain: {config.MODEL_PLANNER})", expanded=True) as status:
-                progress_bar = st.progress(0)
+            with st.status(f"🚀 Spinning up the team... (Brain: {config.MODEL_PLANNER})", expanded=True) as status:
+                prog_bar = st.progress(0)
                 
                 workflow = ReadmeWorkflow()
                 final_result = None
@@ -72,19 +75,19 @@ def render_dashboard():
                     if event.type == "status":
                         st.write(event.message)
                         status.update(label=f"🔄 {event.message}")
-                        progress_bar.progress(event.progress)
+                        prog_bar.progress(event.progress / 100)
                     
                     elif event.type == "log":
                         st.caption(f"ℹ️ {event.message}")
                         
                     elif event.type == "error":
-                        st.error(f"❌ {event.message}")
+                        status_indicator("error", f"❌ {event.message}")
                         status.update(label="❌ Generation Failed", state="error", expanded=True)
                         return # Stop
                         
                     elif event.type == "result":
                         final_result = event.payload
-                        progress_bar.progress(100)
+                        prog_bar.progress(1.0)
                         status.update(label=f"🎉 All done! Documentation generated in {event.payload['duration']:.1f}s", state="complete", expanded=False)
 
                 if final_result:
@@ -101,20 +104,20 @@ def render_dashboard():
                     
                     # Layout for Result
                     st.balloons()
-                    st.divider()
+                    divider()
                     st.subheader("🎉 Your New README")
                     
                     # New Container: Tabs for better organization
-                    tab_preview, tab_raw = st.tabs(["👁️ Live Preview", "📝 Raw Markdown"])
+                    tab_preview, tab_raw = tabs(["👁️ Live Preview", "📝 Raw Markdown"])
                     
                     with tab_preview:
-                        st.info("💡 **Tip:** This is how your README will look on GitHub.")
+                        status_indicator("info", "💡 **Tip:** This is how your README will look on GitHub.")
                         # Render Visuals First
                         render_mermaid(final_md)
                         st.markdown(f'<div class="markdown-body">{final_md}</div>', unsafe_allow_html=True)
                         
                     with tab_raw:
-                        st.success("⬇️ Copy this code into your README.md file.")
+                        status_indicator("success", "⬇️ Copy this code into your README.md file.")
                         st.code(final_md, language="markdown")
                     
                     # Download Actions
@@ -124,10 +127,9 @@ def render_dashboard():
 
     with tab_history:
         if not st.session_state.history:
-            st.info("No history yet. Generate a README to see it here!")
+            status_indicator("info", "No history yet. Generate a README to see it here!")
         else:
             for i, item in enumerate(st.session_state.history):
                 with st.expander(f"{item['repo']} - {item['time']}"):
                     st.download_button(f"Download {item['repo']}", item['content'], f"readme_{i}.md")
                     st.markdown(item['content'])
-

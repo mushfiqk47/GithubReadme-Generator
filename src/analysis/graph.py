@@ -1,8 +1,9 @@
 import os
 import re
-import networkx as nx
 import logging
+import networkx as nx
 from typing import List, Dict
+from src.utils import safe_read_file
 
 logger = logging.getLogger(__name__)
 
@@ -87,8 +88,8 @@ class DependencyGraph:
             
         imports = []
         try:
-            with open(file_path, 'r', encoding='utf-8', errors='ignore') as f:
-                content = f.read()
+            content = safe_read_file(file_path)
+            if content:
                 for p in patterns:
                     matches = re.finditer(p, content, re.MULTILINE)
                     for m in matches:

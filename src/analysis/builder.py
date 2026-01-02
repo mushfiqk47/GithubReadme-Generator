@@ -1,13 +1,13 @@
 import os
-import logging
-import tiktoken
 import subprocess
+import logging
 from pathlib import Path
 from typing import List, Dict, Set
 from concurrent.futures import ThreadPoolExecutor
 from src.analysis.parser import CodeParser
 from src.analysis.graph import DependencyGraph
 from src.core.constants import IGNORE_DIRS, IGNORE_EXTENSIONS
+from src.utils import count_tokens, truncate_tokens, safe_read_file
 
 logger = logging.getLogger(__name__)
 
@@ -20,15 +20,6 @@ class ContextBuilder:
         self.root_dir = root_dir
         self.parser = CodeParser()
         self.graph = DependencyGraph(root_dir)
-        try:
-            self.encoder = tiktoken.get_encoding("cl100k_base")
-        except:
-            self.encoder = None
-
-    def _get_token_count(self, text: str) -> int:
-        if self.encoder:
-            return len(self.encoder.encode(text, disallowed_special=()))
-        return len(text) // 4
 
     def _collect_files(self) -> List[str]:
         """
@@ -77,9 +68,9 @@ class ContextBuilder:
         rel_path = os.path.relpath(f_path, self.root_dir)
         try:
             if mode == "full":
-                with open(f_path, 'r', encoding='utf-8', errors='ignore') as f:
-                    content = f.read()
-                    if len(content) > 15000: content = content[:15000] + "\n... [TRUNCATED]"
+                content = safe_read_file(f_path)
+                if content:
+                    content = truncate_tokens(content, 15000)
                     return f"--- FILE: {rel_path} (Priority: {rank:.4f}) ---\n{content}\n--- END FILE ---\n\n"
             else:
                 skeleton = self.parser.parse_file(f_path)
@@ -101,7 +92,7 @@ class ContextBuilder:
         
         header = f"# Repository Map: {os.path.basename(self.root_dir)}\nTotal Files: {len(all_files)}\n\n"
         output_parts.append(header)
-        current_tokens += self._get_token_count(header)
+        current_tokens += count_tokens(header)
         
         essential_files = {'readme.md', 'package.json', 'requirements.txt', 'pyproject.toml', 'dockerfile', 'cargo.toml', 'go.mod'}
         processed_files = set()
@@ -112,7 +103,7 @@ class ContextBuilder:
             results = list(executor.map(lambda f: self._process_file(f, ranks.get(f, 0), "full"), configs))
             for res in results:
                 if not res: continue
-                tokens = self._get_token_count(res)
+                tokens = count_tokens(res)
                 if current_tokens + tokens < max_tokens:
                     output_parts.append(res)
                     current_tokens += tokens
@@ -124,7 +115,7 @@ class ContextBuilder:
             skeletons = list(executor.map(lambda f: self._process_file(f, ranks.get(f, 0), "skeleton"), top_files))
             for res in skeletons:
                 if not res: continue
-                tokens = self._get_token_count(res)
+                tokens = count_tokens(res)
                 if current_tokens + tokens < max_tokens:
                     output_parts.append(res)
                     current_tokens += tokens

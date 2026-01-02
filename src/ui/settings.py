@@ -127,12 +127,19 @@ def render_settings():
             status = "✅" if configured else "⚪"
             return f"{status} {data['name']}"
 
+        # Determine index safely
+        active = config.ACTIVE_PROVIDER
+        if active not in PROVIDERS:
+            active = "openai" # Default fallback
+            
+        current_index = list(PROVIDERS.keys()).index(active)
+
         # Use a radio button that looks like a vertical menu
         selected_key = st.radio(
             "Select Provider",
             options=list(PROVIDERS.keys()),
             format_func=format_func,
-            index=list(PROVIDERS.keys()).index(config.ACTIVE_PROVIDER) if config.ACTIVE_PROVIDER in PROVIDERS else 0,
+            index=current_index,
             label_visibility="collapsed"
         )
         
@@ -140,6 +147,7 @@ def render_settings():
         if selected_key != config.ACTIVE_PROVIDER:
             save_env_var("ACTIVE_PROVIDER", selected_key)
             config.ACTIVE_PROVIDER = selected_key
+            # Clear LLM cache logic would go here if implemented
             st.rerun()
             
         st.divider()
@@ -197,14 +205,8 @@ def render_settings():
                         help=f"Your key is stored locally in .env. {help_links.get(selected_key, '')}"
                     )
                 with c_btn:
-                    if st.button("💾 Save", key=f"save_{selected_key}", use_container_width=True):
+                    if st.button("💾 Save", key=f"save_{selected_key}"):
                         save_env_var(env_key, api_key)
-                        # Reflection hack for pydantic settings update
-                        try:
-                            # Try setting on config object if attribute exists
-                             setattr(config, env_key, api_key)
-                        except:
-                            pass
                         st.toast("Key saved!", icon="🔒")
                 
                 if current_val:

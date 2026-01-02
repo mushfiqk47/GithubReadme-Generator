@@ -17,16 +17,12 @@ from src.core.llm_factory import LLMFactory
 
 logger = logging.getLogger(__name__)
 
-# Adapter to keep existing function signature if needed
-def get_model(model_name: str):
-    return LLMFactory.get_model(model_name)
-
 def node_intelligence(state: DocumentationState) -> Dict[str, Any]:
     """
     Analyzes the codebase for engineering insights and professional quality markers.
     """
     logger.info("--- Node: Intelligence ---")
-    llm = get_model(config.MODEL_PLANNER)
+    llm = LLMFactory.get_model(config.MODEL_PLANNER)
     repo_text = state['repo_data']
     
     messages = [
@@ -51,7 +47,7 @@ def node_architect(state: DocumentationState) -> Dict[str, Any]:
     The Architect analyzes the repo data and produces a professional plan.
     """
     logger.info("--- Node: Architect ---")
-    planner_llm = get_model(config.MODEL_PLANNER)
+    planner_llm = LLMFactory.get_model(config.MODEL_PLANNER)
     repo_text = state['repo_data']
     
     # Flatten insights for prompt injection
@@ -89,9 +85,13 @@ Context:
     response = planner_llm.invoke(messages)
     content = response.content
     
+    # Handle both string and list content types
+    if isinstance(content, list):
+        content = "\n".join(str(c) for c in content)
+    
     return {
         "project_summary": content,
-        "table_of_contents": ["Hero", "Quick Start", "Features", "Architecture", "Engineering Insights", "Quality Assurance (Playwright)", "Usage", "Contributing"]
+        "repo_data": repo_text
     }
 
 def node_writer(state: DocumentationState) -> Dict[str, Any]:
@@ -99,7 +99,7 @@ def node_writer(state: DocumentationState) -> Dict[str, Any]:
     The Writer drafts the high-fidelity content.
     """
     logger.info("--- Node: Writer ---")
-    writer_llm = get_model(config.MODEL_WRITER)
+    writer_llm = LLMFactory.get_model(config.MODEL_WRITER)
     repo_text = state['repo_data']
     plan = state.get("project_summary", "")
     
@@ -141,9 +141,14 @@ Task: Write the full README.md. Include the Engineering Insights section."""
     ]
     
     response = writer_llm.invoke(messages)
+    content = response.content
+    
+    # Handle both string and list content types
+    if isinstance(content, list):
+        content = "\n".join(str(c) for c in content)
     
     return {
-        "draft_sections": {"full_readme": response.content}
+        "draft_sections": {"full_readme": content}
     }
 
 def node_visualizer(state: DocumentationState) -> Dict[str, Any]:
@@ -151,7 +156,7 @@ def node_visualizer(state: DocumentationState) -> Dict[str, Any]:
     Generates high-quality badges and styled Mermaid diagrams.
     """
     logger.info("--- Node: Visualizer ---")
-    planner_llm = get_model(config.MODEL_PLANNER)
+    planner_llm = LLMFactory.get_model(config.MODEL_PLANNER)
     repo_text = state['repo_data']
     local_path = state.get('local_path', '')
     
@@ -165,9 +170,14 @@ def node_visualizer(state: DocumentationState) -> Dict[str, Any]:
     ]
     
     response = planner_llm.invoke(messages)
+    content = response.content
+    
+    # Handle both string and list content types
+    if isinstance(content, list):
+        content = "\n".join(str(c) for c in content)
     
     return {
-        "visual_assets": [response.content]
+        "visual_assets": [content]
     }
 
 def node_reviewer(state: DocumentationState) -> Dict[str, Any]:
@@ -175,7 +185,7 @@ def node_reviewer(state: DocumentationState) -> Dict[str, Any]:
     The Reviewer ensures the README meets 'Principal Engineer' standards.
     """
     logger.info("--- Node: Reviewer ---")
-    planner_llm = get_model(config.MODEL_PLANNER)
+    planner_llm = LLMFactory.get_model(config.MODEL_PLANNER)
     draft = state['draft_sections'].get('full_readme', '')
     repo_text = state['repo_data']
     
@@ -186,6 +196,10 @@ def node_reviewer(state: DocumentationState) -> Dict[str, Any]:
     
     response = planner_llm.invoke(messages)
     feedback_text = response.content
+    
+    # Handle both string and list content types
+    if isinstance(feedback_text, list):
+        feedback_text = "\n".join(str(item) for item in feedback_text)
     
     # Simple Text Parsing for Robustness with Small Models
     if "REJECT" in feedback_text.upper():

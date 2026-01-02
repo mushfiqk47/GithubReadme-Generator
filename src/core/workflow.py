@@ -10,6 +10,7 @@ from src.core.memory import memory
 from src.ingestion.repo_manager import RepoManager
 from src.analysis.builder import ContextBuilder
 from src.analysis.model_caps import ModelCapabilities
+from src.utils import count_tokens
 
 logger = logging.getLogger(__name__)
 
@@ -68,7 +69,7 @@ class ReadmeWorkflow:
             yield GenerationEvent("status", f"🧠 Architect: Analyzing structure (Budget: {token_budget:,} tokens)...", 15)
             builder = ContextBuilder(local_path)
             repo_text = builder.build_repository_map(max_tokens=token_budget)
-            token_count = builder._get_token_count(repo_text)
+            token_count = count_tokens(repo_text)
             
             yield GenerationEvent("log", f"Context built: {token_count:,} tokens")
 

@@ -2,6 +2,7 @@ import os
 from typing import List, Dict, Any
 import logging
 from tree_sitter_languages import get_language, get_parser
+from src.utils import safe_read_file
 
 logger = logging.getLogger(__name__)
 
@@ -77,8 +78,7 @@ class CodeParser:
             return self._fallback_read(file_path)
 
         try:
-            with open(file_path, 'r', encoding='utf-8', errors='ignore') as f:
-                content = f.read()
+            content = safe_read_file(file_path)
             
             tree = parser.parse(bytes(content, "utf8"))
             query_scm = self.QUERIES.get(lang_name)
@@ -126,10 +126,9 @@ class CodeParser:
     def _fallback_read(self, file_path: str) -> str:
         """Reads first 100 lines as fallback."""
         try:
-            with open(file_path, 'r', encoding='utf-8', errors='ignore') as f:
-                lines = [next(f) for _ in range(100)]
-            return "".join(lines)
-        except StopIteration:
-            return "" # empty file
+            content = safe_read_file(file_path, max_lines=100)
+            if content:
+                return content
+            return ""
         except Exception:
             return ""

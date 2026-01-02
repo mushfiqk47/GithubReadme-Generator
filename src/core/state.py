@@ -1,4 +1,4 @@
-from typing import TypedDict, List, Dict, Any, Optional
+from typing import TypedDict, List, Dict, Any, Optional, Union
 
 class DocumentationState(TypedDict):
     """
@@ -8,7 +8,7 @@ class DocumentationState(TypedDict):
     # Raw Data
     repo_owner: str
     repo_name: str
-    repo_data: Dict[str, Any]       # Raw data/file tree from GitHub GraphQL
+    repo_data: Union[str, Dict[str, Any]]  # Raw data/file tree from GitHub GraphQL or context string
     local_path: str                 # Path to the cloned repository
     user_instructions: Optional[str] # Custom user instructions/focus areas
     
